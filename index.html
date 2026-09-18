@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mulut Ajaib Digital V2.2</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'fredoka': ['Fredoka', 'sans-serif'],
+                    },
+                    colors: {
+                        'edu-blue': '#4F83CC',
+                        'edu-pink': '#FF7CA3',
+                        'edu-yellow': '#FFD166',
+                        'edu-green': '#06D6A0',
+                        'edu-dark': '#2B2D42',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #f0f8ff;
+            color: #333;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        .screen {
+            display: none;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-bounce {
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-bounce:active {
+            transform: scale(0.92);
+        }
+
+        /* Articulation Diagram Styles */
+        .articulatory-diagram {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.06);
+            border: 2px solid #E2E8F0;
+        }
+
+        .artic-state {
+            display: none;
+        }
+
+        .artic-state.active {
+            display: block;
+        }
+
+        /* Keyframe Animations */
+        @keyframes pulseContact {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.25); opacity: 1; }
+        }
+
+        @keyframes airflowBurst {
+            0% { opacity: 0; transform: translateX(-6px); }
+            50% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(8px); }
+        }
+
+        @keyframes throatVibrate {
+            0%, 100% { transform: opacity(0.4); }
+            50% { transform: scale(1.08); opacity: 1; }
+        }
+
+        @keyframes tongueTrill {
+            0% { transform: rotate(0deg) translateY(0); }
+            50% { transform: rotate(-3deg) translateY(-2px); }
+            100% { transform: rotate(2deg) translateY(1px); }
+        }
+
+        .anim-contact {
+            animation: pulseContact 1.5s infinite ease-in-out;
+            transform-origin: center;
+        }
+
+        .anim-airflow {
+            animation: airflowBurst 1.2s infinite linear;
+        }
+
+        .anim-vibe {
+            animation: throatVibrate 0.8s infinite ease-in-out;
+            transform-origin: center;
+        }
+
+        .anim-trill {
+            animation: tongueTrill 0.15s infinite alternate ease-in-out;
+            transform-origin: 130px 130px;
+        }
+
+        /* Digital Mirror Video & Overlay Canvas */
+        #webcam {
+            transform: scaleX(-1);
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 1rem;
+            background-color: #000;
+        }
+        #output_canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            transform: scaleX(-1);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <nav class="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+            <div class="w-10 h-10 bg-edu-blue rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md">
+                MA
+            </div>
+            <h1 class="font-bold text-xl text-edu-dark hidden sm:block">Mulut Ajaib <span class="text-edu-pink">Digital</span></h1>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <button onclick="toggleAudioModal()" class="px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-all flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-file-audio text-yellow-600"></i>
+                <span class="hidden sm:inline">Muat Naik Audio Guru</span>
+            </button>
+
+            <!-- Language Toggle -->
+            <div class="flex bg-gray-100 rounded-full p-1 shadow-inner relative">
+                <button id="lang-ms" class="px-4 py-1.5 rounded-full text-sm font-bold bg-white shadow text-edu-blue transition-all" onclick="setLanguage('ms')">🇲🇾 BM</button>
+                <button id="lang-en" class="px-4 py-1.5 rounded-full text-sm font-bold text-gray-500 transition-all" onclick="setLanguage('en')">🇬🇧 EN</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- AUDIO UPLOAD MANAGER MODAL -->
+    <div id="audio-upload-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="toggleAudioModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold">
+                ✕
+            </button>
+            <h3 class="text-xl font-bold text-edu-dark mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-folder-open text-edu-blue"></i> Muat Naik Audio Sebutan Guru
+            </h3>
+            <p class="text-xs text-gray-500 mb-4">Pilih fail .mp3 dari peranti anda untuk setiap huruf sasaran:</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="audio-inputs-grid">
+                <!-- Dynamically populated in JS -->
+            </div>
+
+            <div class="mt-6 text-center">
+                <button onclick="toggleAudioModal()" class="btn-bounce px-6 py-2.5 bg-edu-blue text-white rounded-full font-bold shadow text-sm">
+                    Simpan & Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-grow w-full max-w-4xl mx-auto p-4 sm:p-6 pb-20">
+
+        <div id="screen-home" class="screen active">
+            <div class="text-center mb-10 mt-6">
+                <h2 class="text-3xl sm:text-4xl font-bold text-edu-dark mb-3 lang-title-home">Pilih Pasangan Huruf</h2>
+                <p class="text-gray-500 lang-desc-home">Mari belajar perbezaan bentuk mulut dan bunyi!</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <!-- p & b -->
+                <button onclick="selectPair('p', 'b')" class="btn-bounce group relative bg-white rounded-3xl p-6 shadow-lg border-b-4 border-blue-200 hover:border-blue-400 flex flex-col items-center justify-center gap-4">
+                    <div class="flex items-center gap-4 text-5xl font-bold text-blue-500">
+                        <span>p</span>
+                        <i class="fa-solid fa-arrows-left-right text-gray-300 text-2xl"></i>
+                        <span class="text-pink-500">b</span>
+                    </div>
+                    <span class="bg-gray-100 text-gray-600 px-4 py-1 rounded-full text-sm font-semibold lang-pair-desc">Bibir & Letupan (p & b)</span>
+                </button>
+                
+                <!-- d & t -->
+                <button onclick="selectPair('d', 't')" class="btn-bounce group relative bg-white rounded-3xl p-6 shadow-lg border-b-4 border-green-200 hover:border-green-400 flex flex-col items-center justify-center gap-4">
+                    <div class="flex items-center gap-4 text-5xl font-bold text-green-500">
+                        <span>d</span>
+                        <i class="fa-solid fa-arrows-left-right text-gray-300 text-2xl"></i>
+                        <span class="text-yellow-500">t</span>
+                    </div>
+                    <span class="bg-gray-100 text-gray-600 px-4 py-1 rounded-full text-sm font-semibold lang-pair-desc">Hujung Lidah</span>
+                </button>
+
+                <!-- g & k -->
+                <button onclick="selectPair('g', 'k')" class="btn-bounce group relative bg-white rounded-3xl p-6 shadow-lg border-b-4 border-purple-200 hover:border-purple-400 flex flex-col items-center justify-center gap-4">
+                    <div class="flex items-center gap-4 text-5xl font-bold text-purple-500">
+                        <span>g</span>
+                        <i class="fa-solid fa-arrows-left-right text-gray-300 text-2xl"></i>
+                        <span class="text-indigo-500">k</span>
+                    </div>
+                    <span class="bg-gray-100 text-gray-600 px-4 py-1 rounded-full text-sm font-semibold lang-pair-desc">Pangkal Lidah</span>
+                </button>
+
+                <!-- l & r -->
+                <button onclick="selectPair('l', 'r')" class="btn-bounce group relative bg-white rounded-3xl p-6 shadow-lg border-b-4 border-red-200 hover:border-red-400 flex flex-col items-center justify-center gap-4">
+                    <div class="flex items-center gap-4 text-5xl font-bold text-red-500">
+                        <span>l</span>
+                        <i class="fa-solid fa-arrows-left-right text-gray-300 text-2xl"></i>
+                        <span class="text-orange-500">r</span>
+                    </div>
+                    <span class="bg-gray-100 text-gray-600 px-4 py-1 rounded-full text-sm font-semibold lang-pair-desc">Lidah & Gusi</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="screen-letter-select" class="screen">
+            <div class="flex items-center gap-4 mb-8">
+                <button onclick="showScreen('screen-home')" class="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center text-gray-600 hover:bg-gray-50">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <h2 class="text-2xl font-bold text-edu-dark lang-title-select">Pilih Huruf Sasaran</h2>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6 max-w-lg mx-auto" id="letter-select-grid">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <div id="screen-mouth-model" class="screen">
+            <div class="flex items-center justify-between mb-6">
+                <button onclick="showScreen('screen-letter-select')" class="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center text-gray-600 hover:bg-gray-50">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="px-6 py-2 bg-white rounded-full shadow-sm font-bold text-xl text-edu-blue">
+                    Huruf: <span id="current-letter-display" class="text-edu-pink text-2xl lowercase">p</span>
+                </div>
+                <div class="w-10"></div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 shadow-lg border-b-4 border-gray-200">
+                <h3 class="text-xl font-bold text-center mb-4 lang-title-diagram">RAJAH KERATAN SISI ALAT ARTIKULASI</h3>
+                
+                <!-- Dynamic Articulation Info Banner -->
+                <div id="artic-instruction-banner" class="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 flex items-center gap-4">
+                    <div id="banner-letter-badge" class="w-12 h-12 rounded-full bg-edu-pink text-white font-black text-2xl flex items-center justify-center flex-shrink-0 shadow">
+                        p
+                    </div>
+                    <p id="artic-description-text" class="text-gray-700 font-medium text-sm sm:text-base leading-snug">
+                        Bibir rapat, kemudian lepaskan udara dengan kuat.
+                    </p>
+                </div>
+
+                <!-- Anatomical SVG Articulation Canvas -->
+                <div class="articulatory-diagram w-full max-w-lg mx-auto aspect-[4/3] mb-4 shadow-inner flex items-center justify-center p-2">
+                    <svg viewBox="0 0 440 330" class="w-full h-full" id="mouth-svg">
+                        <defs>
+                            <radialGradient id="contactGlow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="#FF0040" stop-opacity="1" />
+                                <stop offset="70%" stop-color="#FF4D6D" stop-opacity="0.8" />
+                                <stop offset="100%" stop-color="#FF0040" stop-opacity="0" />
+                            </radialGradient>
+                            <radialGradient id="throatGlow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="#FF5722" stop-opacity="0.9" />
+                                <stop offset="100%" stop-color="#FF9800" stop-opacity="0" />
+                            </radialGradient>
+                            <marker id="arrowHead" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1 L 10 5 L 0 9 z" fill="#0284C7" />
+                            </marker>
+                        </defs>
+
+                        <!-- Base Anatomical Outline -->
+                        <g id="base-anatomy">
+                            <path d="M 120 20 C 100 20, 75 45, 75 70 C 75 80, 70 85, 60 90 C 52 95, 45 105, 55 125 C 60 135, 68 142, 68 145 C 68 148, 55 155, 50 165 C 45 175, 55 190, 70 195 C 80 198, 85 210, 85 230 C 85 260, 110 280, 150 280 C 180 280, 210 270, 230 250 L 230 20 Z" fill="#F1F5F9" stroke="#94A3B8" stroke-width="3" />
+                            <path d="M 80 80 Q 120 75 160 85 Q 180 90 200 110 L 200 80 Q 140 50 80 80 Z" fill="#E0F2FE" opacity="0.7" />
+                            <path d="M 72 135 Q 120 120 180 130 L 190 240 Q 130 240 100 220 Z" fill="#FFF1F2" />
+                            <path d="M 78 126 C 100 120, 145 120, 165 130" fill="none" stroke="#F59E0B" stroke-width="9" stroke-linecap="round" />
+                            <path d="M 165 130 C 180 138, 190 150, 192 170" fill="none" stroke="#E11D48" stroke-width="9" stroke-linecap="round" />
+                            <path d="M 200 150 L 200 260 M 180 170 L 180 260" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="3,3" />
+                        </g>
+
+                        <!-- target: p -->
+                        <g id="artic-p" class="artic-state">
+                            <path d="M 68 135 C 55 140, 52 148, 68 148 C 68 148, 52 148, 68 160" fill="none" stroke="#FF477E" stroke-width="12" stroke-linecap="round" />
+                            <path d="M 65 148 L 72 148" stroke="#990026" stroke-width="3" />
+                            <rect x="74" y="130" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <rect x="74" y="152" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <path d="M 85 180 C 100 160, 140 160, 175 185 L 175 220 C 130 220, 95 210, 85 180 Z" fill="#FF7096" stroke="#E63946" stroke-width="3" />
+                            <circle cx="67" cy="148" r="14" fill="url(#contactGlow)" class="anim-contact" />
+                            <g class="anim-airflow">
+                                <line x1="50" y1="148" x2="25" y2="148" stroke="#0284C7" stroke-width="3" marker-end="url(#arrowHead)" />
+                                <line x1="53" y1="140" x2="30" y2="132" stroke="#0284C7" stroke-width="2.5" marker-end="url(#arrowHead)" />
+                                <line x1="53" y1="156" x2="30" y2="164" stroke="#0284C7" stroke-width="2.5" marker-end="url(#arrowHead)" />
+                            </g>
+                        </g>
+
+                        <!-- target: b -->
+                        <g id="artic-b" class="artic-state">
+                            <path d="M 68 135 C 55 140, 52 148, 68 148 C 68 148, 52 148, 68 160" fill="none" stroke="#FF477E" stroke-width="12" stroke-linecap="round" />
+                            <path d="M 65 148 L 72 148" stroke="#990026" stroke-width="3" />
+                            <rect x="74" y="130" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <rect x="74" y="152" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <path d="M 85 180 C 100 160, 140 160, 175 185 L 175 220 C 130 220, 95 210, 85 180 Z" fill="#FF7096" stroke="#E63946" stroke-width="3" />
+                            <circle cx="67" cy="148" r="14" fill="url(#contactGlow)" class="anim-contact" />
+                            <g class="anim-vibe">
+                                <path d="M 188 205 Q 198 215 188 225" fill="none" stroke="#FF5722" stroke-width="4" stroke-linecap="round" />
+                                <path d="M 194 200 Q 206 215 194 230" fill="none" stroke="#FF5722" stroke-width="3" stroke-linecap="round" />
+                            </g>
+                        </g>
+
+                        <!-- target: d -->
+                        <g id="artic-d" class="artic-state">
+                            <path d="M 66 128 C 55 130, 50 138, 60 142" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <path d="M 66 168 C 55 166, 50 158, 60 154" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <rect x="74" y="126" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <rect x="74" y="156" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <path d="M 80 185 C 90 170, 82 135, 98 126 C 115 125, 145 155, 175 185 L 175 220 C 130 220, 95 210, 80 185 Z" fill="#FF7096" stroke="#E63946" stroke-width="3" />
+                            <circle cx="98" cy="126" r="14" fill="url(#contactGlow)" class="anim-contact" />
+                            <g class="anim-vibe">
+                                <path d="M 188 205 Q 198 215 188 225" fill="none" stroke="#FF5722" stroke-width="4" stroke-linecap="round" />
+                                <path d="M 194 200 Q 206 215 194 230" fill="none" stroke="#FF5722" stroke-width="3" stroke-linecap="round" />
+                            </g>
+                        </g>
+
+                        <!-- target: t -->
+                        <g id="artic-t" class="artic-state">
+                            <path d="M 66 128 C 55 130, 50 138, 60 142" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <path d="M 66 168 C 55 166, 50 158, 60 154" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <rect x="74" y="126" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <rect x="74" y="156" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <path d="M 80 185 C 90 170, 82 135, 98 126 C 115 125, 145 155, 175 185 L 175 220 C 130 220, 95 210, 80 185 Z" fill="#FF7096" stroke="#E63946" stroke-width="3" />
+                            <circle cx="98" cy="126" r="14" fill="url(#contactGlow)" class="anim-contact" />
+                            <g class="anim-airflow">
+                                <line x1="70" y1="148" x2="35" y2="148" stroke="#0284C7" stroke-width="3" marker-end="url(#arrowHead)" />
+                                <line x1="72" y1="142" x2="40" y2="135" stroke="#0284C7" stroke-width="2.5" marker-end="url(#arrowHead)" />
+                            </g>
+                        </g>
+
+                        <!-- target: g -->
+                        <g id="artic-g" class="artic-state">
+                            <path d="M 66 128 C 55 130, 50 138, 60 142" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <path d="M 66 168 C 55 166, 50 158, 60 154" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <rect x="74" y="126" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <rect x="74" y="156" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <path d="M 80 180 C 100 175, 120 165, 155 135 C 175 145, 180 170, 175 220 L 100 220 Z" fill="#FF7096" stroke="#E63946" stroke-width="3" />
+                            <circle cx="158" cy="135" r="15" fill="url(#contactGlow)" class="anim-contact" />
+                            <g class="anim-vibe">
+                                <path d="M 188 205 Q 198 215 188 225" fill="none" stroke="#FF5722" stroke-width="4" stroke-linecap="round" />
+                                <path d="M 194 200 Q 206 215 194 230" fill="none" stroke="#FF5722" stroke-width="3" stroke-linecap="round" />
+                            </g>
+                        </g>
+
+                        <!-- target: k -->
+                        <g id="artic-k" class="artic-state">
+                            <path d="M 66 128 C 55 130, 50 138, 60 142" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <path d="M 66 168 C 55 166, 50 158, 60 154" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <rect x="74" y="126" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <rect x="74" y="156" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <path d="M 80 180 C 100 175, 120 165, 155 135 C 175 145, 180 170, 175 220 L 100 220 Z" fill="#FF7096" stroke="#E63946" stroke-width="3" />
+                            <circle cx="158" cy="135" r="15" fill="url(#contactGlow)" class="anim-contact" />
+                            <g class="anim-airflow">
+                                <path d="M 140 140 Q 110 145 65 148" fill="none" stroke="#0284C7" stroke-width="3" marker-end="url(#arrowHead)" />
+                                <path d="M 140 145 Q 110 152 40 152" fill="none" stroke="#0284C7" stroke-width="2.5" marker-end="url(#arrowHead)" />
+                            </g>
+                        </g>
+
+                        <!-- target: l -->
+                        <g id="artic-l" class="artic-state">
+                            <path d="M 66 128 C 55 130, 50 138, 60 142" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <path d="M 66 168 C 55 166, 50 158, 60 154" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <rect x="74" y="126" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <rect x="74" y="156" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <path d="M 80 185 C 95 170, 95 140, 120 120 C 130 130, 140 160, 175 185 L 175 220 Z" fill="#FF7096" stroke="#E63946" stroke-width="3" />
+                            <circle cx="120" cy="120" r="14" fill="url(#contactGlow)" class="anim-contact" />
+                            <g class="anim-airflow">
+                                <path d="M 160 160 Q 135 145 105 152 Q 80 152 45 150" fill="none" stroke="#0284C7" stroke-width="3" stroke-dasharray="4,2" marker-end="url(#arrowHead)" />
+                            </g>
+                            <g class="anim-vibe">
+                                <path d="M 188 205 Q 198 215 188 225" fill="none" stroke="#FF5722" stroke-width="4" stroke-linecap="round" />
+                                <path d="M 194 200 Q 206 215 194 230" fill="none" stroke="#FF5722" stroke-width="3" stroke-linecap="round" />
+                            </g>
+                        </g>
+
+                        <!-- target: r -->
+                        <g id="artic-r" class="artic-state">
+                            <path d="M 66 128 C 55 130, 50 138, 60 142" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <path d="M 66 168 C 55 166, 50 158, 60 154" fill="none" stroke="#FF477E" stroke-width="9" stroke-linecap="round" />
+                            <rect x="74" y="126" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <rect x="74" y="156" width="7" height="12" fill="#FFF" stroke="#64748B" rx="1" />
+                            <path d="M 80 185 C 95 170, 95 140, 115 125 C 112 135, 130 160, 175 185 L 175 220 Z" fill="#FF7096" stroke="#E63946" stroke-width="3" class="anim-trill" />
+                            <circle cx="118" cy="125" r="12" fill="url(#contactGlow)" class="anim-contact" />
+                            <path d="M 112 118 Q 116 114 120 118" stroke="#FF5722" stroke-width="2" fill="none" />
+                            <path d="M 110 114 Q 116 109 122 114" stroke="#FF5722" stroke-width="2" fill="none" />
+                            <g class="anim-vibe">
+                                <path d="M 188 205 Q 198 215 188 225" fill="none" stroke="#FF5722" stroke-width="4" stroke-linecap="round" />
+                                <path d="M 194 200 Q 206 215 194 230" fill="none" stroke="#FF5722" stroke-width="3" stroke-linecap="round" />
+                            </g>
+                        </g>
+
+                        <!-- MAGNIFIER INSET CIRCLE -->
+                        <g id="zoom-inset-circle">
+                            <circle cx="330" cy="135" r="62" fill="#FFFFFF" stroke="#1E293B" stroke-width="4" />
+                            <g id="inset-content"></g>
+                            <rect x="250" y="204" width="160" height="26" rx="13" fill="#1E293B" />
+                            <text id="inset-caption" x="330" y="221" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle">
+                                Bibir rapat
+                            </text>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Bottom Voicing Badge -->
+                <div id="voicing-badge" class="max-w-md mx-auto mb-6 py-2.5 px-4 rounded-2xl text-center font-bold text-sm sm:text-base transition-colors shadow-sm flex items-center justify-center gap-2">
+                    <span id="voicing-icon">〰️</span>
+                    <span id="voicing-text">Bunyi tidak bersuara (tidak ada getaran tekak)</span>
+                </div>
+
+                <!-- Controls -->
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+                    <button id="btn-play-audio" class="btn-bounce bg-edu-yellow text-edu-dark font-bold py-3 px-6 rounded-full shadow flex items-center gap-2 w-full sm:w-auto" onclick="playModelAudio(state.currentLetter)">
+                        <i class="fa-solid fa-volume-high"></i> <span class="lang-btn-listen">Dengar Sebutan Guru</span>
+                    </button>
+                    <button id="btn-replay-audio" class="btn-bounce bg-gray-100 text-gray-700 font-bold py-3 px-6 rounded-full shadow flex items-center gap-2 hover:bg-gray-200 w-full sm:w-auto" onclick="animateMouth(state.currentLetter)">
+                        <i class="fa-solid fa-rotate-right"></i> <span class="lang-btn-replay">Ulang Animasi</span>
+                    </button>
+                </div>
+
+                <!-- Audio Error / Fallback Status Message -->
+                <div id="audio-error-msg" class="hidden text-center py-2 px-4 rounded-xl mb-4 text-xs font-semibold border transition-all">
+                </div>
+
+                <div class="text-center mt-6">
+                    <button id="btn-try-now" class="btn-bounce bg-edu-blue text-white font-bold py-4 px-10 rounded-full shadow-lg text-lg flex items-center justify-center gap-3 w-full max-w-md mx-auto hover:bg-blue-600 transition-colors">
+                        <span class="lang-btn-try">Ikut Dengan Cermin Digital</span> <i class="fa-solid fa-camera"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-camera" class="screen">
+            <div class="flex items-center justify-between mb-4">
+                <button onclick="closeCameraAndGoBack()" class="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center text-gray-600 hover:bg-gray-50">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="px-6 py-2 bg-white rounded-full shadow-sm font-bold text-xl text-edu-blue">
+                    <span class="lang-title-camera">Cermin Digital Sebutan</span>
+                </div>
+                <div class="w-10"></div>
+            </div>
+
+            <!-- Camera Error Container -->
+            <div id="camera-error" class="hidden bg-red-100 text-red-700 p-4 rounded-2xl mb-4 font-semibold text-center border-2 border-red-300 shadow-sm flex flex-col items-center gap-3">
+                <span id="camera-error-text">📷 Akses kamera disekat.</span>
+                <button onclick="startCamera()" class="bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow hover:bg-red-600 transition">↻ Cuba Lagi</button>
+            </div>
+
+            <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-lg border-b-4 border-gray-200">
+                
+                <!-- Side-by-Side Grid: Target Reference vs Live Mirrored Camera -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    
+                    <!-- Left Column: Target Reference Card -->
+                    <div class="bg-blue-50/70 border-2 border-blue-200 rounded-2xl p-4 flex flex-col items-center justify-center relative">
+                        <div class="absolute top-3 left-3 bg-edu-blue text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm">
+                            <span class="lang-card-target">BENTUK SASARAN</span>: <span id="camera-target-letter" class="lowercase font-black">p</span>
+                        </div>
+
+                        <div class="w-full max-w-[220px] aspect-[4/3] my-2">
+                            <!-- Injected mini target SVG reference -->
+                            <div id="mini-target-svg-container" class="w-full h-full bg-white rounded-xl shadow-inner border border-blue-100 p-1 flex items-center justify-center">
+                            </div>
+                        </div>
+
+                        <p id="camera-target-hint" class="text-xs sm:text-sm text-edu-dark font-semibold text-center mt-1">
+                            Bibir rapat, kemudian lepaskan udara.
+                        </p>
+                    </div>
+
+                    <!-- Right Column: Mirrored Live Selfie Camera Card -->
+                    <div class="bg-gray-900 rounded-2xl p-2 flex flex-col items-center justify-center relative min-h-[260px]">
+                        <div class="absolute top-3 left-3 bg-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm z-20 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                            <span class="lang-card-mirror">MULUT ANDA (CERMIN)</span>
+                        </div>
+
+                        <div class="relative w-full aspect-[4/3] rounded-xl overflow-hidden">
+                            <div id="camera-loading" class="absolute inset-0 flex flex-col items-center justify-center text-white z-10 bg-gray-900">
+                                <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-2 text-edu-pink"></i>
+                                <span class="text-sm font-semibold lang-cam-loading">Membuka kamera...</span>
+                            </div>
+
+                            <video id="webcam" autoplay playsinline></video>
+                            <canvas id="output_canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Pupil-Friendly Real-Time Visual Feedback Banner -->
+                <div id="mirror-feedback-banner" class="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-4 text-center shadow-sm">
+                    <p id="mirror-feedback-text" class="text-base sm:text-lg font-bold text-gray-800 flex items-center justify-center gap-2">
+                        👄 <span class="lang-mirror-preparing">Sediakan bentuk mulut mengikut rujukan...</span>
+                    </p>
+                    <p class="text-[11px] text-gray-400 mt-1 lang-disclaimer-mirror">* Tracking wajah secara langsung (panduan visual anggaran)</p>
+                </div>
+
+                <button onclick="goToSpeech()" class="btn-bounce bg-edu-green text-white font-bold py-4 px-10 rounded-full shadow-lg text-lg flex items-center justify-center gap-3 w-full max-w-md mx-auto hover:bg-green-600 transition-colors">
+                    <span class="lang-btn-next">Seterusnya (Latihan Bunyi)</span> <i class="fa-solid fa-microphone"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="screen-speech" class="screen">
+            <div class="flex items-center justify-between mb-6">
+                <button onclick="showScreen('screen-camera'); startCamera();" class="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center text-gray-600 hover:bg-gray-50">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="px-6 py-2 bg-white rounded-full shadow-sm font-bold text-xl text-edu-blue">
+                    <span class="lang-title-speech">Latihan Bunyi & Sebutan</span>
+                </div>
+                <div class="w-10"></div>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 shadow-lg border-b-4 border-gray-200 text-center">
+                
+                <!-- Target Selector Header -->
+                <div class="bg-blue-50 rounded-2xl p-4 mb-6 border border-blue-100 flex flex-col items-center">
+                    <span class="text-xs font-bold text-edu-blue uppercase tracking-wider mb-1 lang-target-label">SASARAN SEBUTAN SEKARANG</span>
+                    <div class="flex items-center gap-3">
+                        <span id="current-speech-target" class="text-3xl font-black text-edu-pink lowercase">pa</span>
+                        <button onclick="playTargetSound()" class="w-9 h-9 bg-edu-yellow rounded-full shadow flex items-center justify-center text-edu-dark hover:scale-105 transition">
+                            <i class="fa-solid fa-volume-high text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Syllables Selection -->
+                <h4 class="font-bold text-gray-500 mb-3 text-sm tracking-wide lang-label-syllable">SUKU KATA (PILIH UNTUK DENGAR & RAKAM)</h4>
+                <div class="flex flex-wrap justify-center gap-2 sm:gap-3 mb-6" id="syllable-container"></div>
+
+                <!-- Words Selection -->
+                <h4 class="font-bold text-gray-500 mb-3 text-sm tracking-wide lang-label-word">PERKATAAN (PILIH UNTUK DENGAR & RAKAM)</h4>
+                <div class="flex flex-wrap justify-center gap-2 sm:gap-3 mb-8" id="word-container"></div>
+
+                <!-- Recording & Interactive Score Board -->
+                <div class="bg-gray-50 rounded-3xl p-6 mb-6 border border-gray-100 shadow-inner">
+                    
+                    <button id="btn-record" class="btn-bounce w-20 h-20 bg-red-500 rounded-full shadow-lg text-white text-3xl flex items-center justify-center mx-auto mb-4 hover:bg-red-600 transition-all">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
+                    
+                    <p id="speech-listening-status" class="text-sm font-bold text-gray-400 mb-2">Tekan mikrofon & sebut sasaran</p>
+                    <p id="speech-result-transcript" class="text-base font-semibold text-gray-600 mb-4 min-h-[1.5rem]">...</p>
+
+                    <!-- Phonetic Scoring Card Result (Hidden until spoken) -->
+                    <div id="score-card-panel" class="hidden max-w-md mx-auto bg-white rounded-2xl p-5 shadow-md border-2 border-gray-200 transition-all">
+                        <div class="text-xs font-extrabold tracking-widest text-gray-400 uppercase mb-1">SKOR SEBUTAN</div>
+                        
+                        <div id="score-numeric-display" class="text-4xl font-black text-edu-blue my-1">
+                            0 <span class="text-lg font-bold text-gray-400">/ 100</span>
+                        </div>
+                        
+                        <div id="score-badge-text" class="text-lg font-bold text-gray-800 mb-2">
+                            -
+                        </div>
+                        
+                        <p id="score-feedback-hint" class="text-sm text-gray-600 font-medium mb-4 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                            -
+                        </p>
+
+                        <!-- Action Buttons: Retry vs Next -->
+                        <div class="flex items-center justify-center gap-3">
+                            <button id="btn-retry-speech" onclick="retryCurrentTarget()" class="btn-bounce px-5 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-edu-dark font-bold rounded-full text-sm shadow flex items-center gap-2">
+                                <i class="fa-solid fa-rotate-left"></i> <span class="lang-btn-retry">Cuba Lagi</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="text-[11px] text-gray-400 mt-4 lang-disclaimer-speech">* Pengecaman suara menyemak padanan bunyi awal sasaran secara khusus.</p>
+                </div>
+
+                <button onclick="finishSession()" class="btn-bounce bg-edu-blue text-white font-bold py-4 px-10 rounded-full shadow-lg text-lg flex items-center justify-center gap-3 w-full max-w-md mx-auto hover:bg-blue-600 transition-colors">
+                    <span class="lang-btn-finish">Lihat Rumusan</span> <i class="fa-solid fa-star"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="screen-summary" class="screen">
+            <div class="text-center mb-10 mt-6">
+                <h2 class="text-3xl sm:text-4xl font-bold text-edu-dark mb-3 lang-title-summary">Syabas!</h2>
+                <p class="text-gray-500 lang-desc-summary">Anda telah menyelesaikan latihan untuk huruf ini.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-lg border-b-4 border-yellow-300 text-center max-w-md mx-auto">
+                <i class="fa-solid fa-trophy text-6xl text-edu-yellow mb-6"></i>
+                
+                <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                        <p class="text-2xl mb-1">🎤</p>
+                        <p class="font-bold text-gray-500 text-xs uppercase tracking-wider lang-summary-speech">Purata Sebutan</p>
+                        <p class="text-2xl font-black text-edu-blue" id="summary-avg-score">0 / 100</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-2xl border border-green-100">
+                        <p class="text-2xl mb-1">✅</p>
+                        <p class="font-bold text-gray-500 text-xs uppercase tracking-wider lang-summary-correct">Sebutan Tepat</p>
+                        <p class="text-2xl font-black text-edu-green" id="summary-correct-count">0 / 0</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-8">
+                    <div class="bg-yellow-50 p-4 rounded-2xl border border-yellow-100">
+                        <p class="text-2xl mb-1">🔁</p>
+                        <p class="font-bold text-gray-500 text-xs uppercase tracking-wider lang-summary-retries">Cuba Lagi</p>
+                        <p class="text-2xl font-black text-yellow-600" id="summary-retry-count">0</p>
+                    </div>
+                    <div class="bg-pink-50 p-4 rounded-2xl border border-pink-100">
+                        <p class="text-2xl mb-1">🪞</p>
+                        <p class="font-bold text-gray-500 text-xs uppercase tracking-wider lang-summary-mirror">Cermin Digital</p>
+                        <p class="text-lg font-black text-edu-pink" id="summary-mirror-status">Selesai ✨</p>
+                    </div>
+                </div>
+
+                <button onclick="goHome()" class="btn-bounce bg-edu-blue text-white font-bold py-4 px-10 rounded-full shadow-lg text-lg flex items-center justify-center gap-3 w-full hover:bg-blue-600 transition-colors">
+                    <i class="fa-solid fa-house"></i> <span class="lang-btn-home">Kembali ke Laman Utama</span>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- APP STATE ---
+        const state = {
+            language: 'ms',
+            currentPair: [],
+            currentLetter: 'p',
+            currentTargetItem: 'pa',
+            cameraActive: false,
+            // Session metrics
+            speechAttempts: [],
+            retriesCount: 0
+        };
+
+        // Custom Uploaded Audio Storage Map (in-memory Blob URLs)
+        const customAudioMap = {};
+
+        // --- CONTENT DATA ---
+        const contentData = {
+            'p': { syllables: ['p (bunyi)', 'pa', 'pe', 'pi', 'po', 'pu'], words: ['padi', 'paku', 'pipi', 'pintu', 'pokok'] },
+            'b': { syllables: ['b (bunyi)', 'ba', 'be', 'bi', 'bo', 'bu'], words: ['baju', 'batu', 'buku', 'bola', 'bulan'] },
+            'd': { syllables: ['d (bunyi)', 'da', 'de', 'di', 'do', 'du'], words: ['dadu', 'daki', 'dahan', 'daun', 'dinding'] },
+            't': { syllables: ['t (bunyi)', 'ta', 'te', 'ti', 'to', 'tu'], words: ['tali', 'tadi', 'tamu', 'tikus', 'topi'] },
+            'g': { syllables: ['g (bunyi)', 'ga', 'ge', 'gi', 'go', 'gu'], words: ['gigi', 'gula', 'gali', 'gajah', 'goreng'] },
+            'k': { syllables: ['k (bunyi)', 'ka', 'ke', 'ki', 'ko', 'ku'], words: ['kaki', 'kuda', 'kuku', 'kucing', 'kereta'] },
+            'l': { syllables: ['l (bunyi)', 'la', 'le', 'li', 'lo', 'lu'], words: ['lima', 'lidi', 'lori', 'lampu', 'lalat'] },
+            'r': { syllables: ['r (bunyi)', 'ra', 're', 'ri', 'ro', 'ru'], words: ['roti', 'rasa', 'roda', 'rambut', 'rumah'] }
+        };
+
+        // --- ARTICULATION SPECIFICATIONS (PER LETTER) ---
+        const articulationDetails = {
+            'p': {
+                badgeColor: 'bg-pink-500',
+                descMs: 'Bibir rapat, kemudian lepaskan udara dengan kuat.',
+                descEn: 'Lips closed tightly, then release air strongly.',
+                isVoiced: false,
+                captionMs: 'Bibir rapat',
+                captionEn: 'Lips closed',
+                badgeMs: 'Bunyi tidak bersuara (tidak ada getaran tekak)',
+                badgeEn: 'Voiceless sound (no throat vibration)',
+                mirrorFeedbackClosed: '👍 Bibir rapat - bersedia melepaskan bunyi!',
+                mirrorFeedbackOpen: '👄 Cuba rapatkan bibir atas & bawah',
+                insetSvg: `
+                    <path d="M 310 115 C 322 130, 322 140, 310 155" stroke="#FF477E" stroke-width="14" fill="none" stroke-linecap="round"/>
+                    <path d="M 310 135 L 320 135" stroke="#990026" stroke-width="4"/>
+                    <circle cx="315" cy="135" r="10" fill="url(#contactGlow)"/>
+                    <line x1="332" y1="135" x2="365" y2="135" stroke="#0284C7" stroke-width="3" marker-end="url(#arrowHead)"/>
+                `
+            },
+            'b': {
+                badgeColor: 'bg-blue-500',
+                descMs: 'Bibir rapat, kemudian lepaskan bunyi.',
+                descEn: 'Lips closed tightly, then release sound.',
+                isVoiced: true,
+                captionMs: 'Bibir rapat',
+                captionEn: 'Lips closed',
+                badgeMs: 'Bunyi bersuara (ada getaran tekak)',
+                badgeEn: 'Voiced sound (throat vibration)',
+                mirrorFeedbackClosed: '👍 Bibir rapat - bersedia untuk bunyi /b/!',
+                mirrorFeedbackOpen: '👄 Cuba rapatkan bibir sebelum sebut',
+                insetSvg: `
+                    <path d="M 310 115 C 322 130, 322 140, 310 155" stroke="#FF477E" stroke-width="14" fill="none" stroke-linecap="round"/>
+                    <path d="M 310 135 L 320 135" stroke="#990026" stroke-width="4"/>
+                    <circle cx="315" cy="135" r="10" fill="url(#contactGlow)"/>
+                    <path d="M 335 120 Q 345 135 335 150" stroke="#FF5722" stroke-width="4" fill="none" stroke-linecap="round"/>
+                `
+            },
+            'd': {
+                badgeColor: 'bg-green-500',
+                descMs: 'Hujung lidah sentuh belakang gigi atas, kemudian lepaskan bunyi.',
+                descEn: 'Tongue tip touches behind upper front teeth, then release sound.',
+                isVoiced: true,
+                captionMs: 'Hujung lidah sentuh sini',
+                captionEn: 'Tongue tip touches here',
+                badgeMs: 'Bunyi bersuara (ada getaran tekak)',
+                badgeEn: 'Voiced sound (throat vibration)',
+                mirrorFeedbackClosed: '👄 Bukaan mulut sesuai untuk posisi lidah /d/',
+                mirrorFeedbackOpen: '👅 Panduan: Sentuhkan hujung lidah ke gusi atas',
+                insetSvg: `
+                    <path d="M 300 100 C 330 105, 345 125, 345 140" stroke="#F59E0B" stroke-width="10" fill="none"/>
+                    <rect x="290" y="105" width="10" height="18" fill="#FFF" stroke="#64748B"/>
+                    <path d="M 295 165 Q 320 150 330 130" stroke="#FF7096" stroke-width="16" fill="none" stroke-linecap="round"/>
+                    <circle cx="330" cy="130" r="12" fill="url(#contactGlow)"/>
+                `
+            },
+            't': {
+                badgeColor: 'bg-yellow-500',
+                descMs: 'Hujung lidah sentuh belakang gigi atas, lepaskan udara.',
+                descEn: 'Tongue tip touches behind upper front teeth, release air.',
+                isVoiced: false,
+                captionMs: 'Hujung lidah sentuh sini',
+                captionEn: 'Tongue tip touches here',
+                badgeMs: 'Bunyi tidak bersuara (tidak ada getaran tekak)',
+                badgeEn: 'Voiceless sound (no throat vibration)',
+                mirrorFeedbackClosed: '👄 Bukaan mulut sesuai untuk melepaskan angin /t/',
+                mirrorFeedbackOpen: '👅 Panduan: Hujung lidah bersedia di belakang gigi atas',
+                insetSvg: `
+                    <path d="M 300 100 C 330 105, 345 125, 345 140" stroke="#F59E0B" stroke-width="10" fill="none"/>
+                    <rect x="290" y="105" width="10" height="18" fill="#FFF" stroke="#64748B"/>
+                    <path d="M 295 165 Q 320 150 330 130" stroke="#FF7096" stroke-width="16" fill="none" stroke-linecap="round"/>
+                    <circle cx="330" cy="130" r="12" fill="url(#contactGlow)"/>
+                `
+            },
+            'g': {
+                badgeColor: 'bg-purple-500',
+                descMs: 'Bahagian belakang lidah naik ke langit-langit lembut, kemudian lepaskan bunyi.',
+                descEn: 'Back of tongue rises to soft palate, then release sound.',
+                isVoiced: true,
+                captionMs: 'Belakang lidah sentuh sini',
+                captionEn: 'Back of tongue touches here',
+                badgeMs: 'Bunyi bersuara (ada getaran tekak)',
+                badgeEn: 'Voiced sound (throat vibration)',
+                mirrorFeedbackClosed: '🗣️ Bukaan mulut sesuai untuk pangkal lidah /g/',
+                mirrorFeedbackOpen: '🗣️ Panduan: Pangkal lidah naik ke langit-langit lembut',
+                insetSvg: `
+                    <path d="M 290 105 C 330 110, 360 135, 365 160" stroke="#E11D48" stroke-width="12" fill="none"/>
+                    <path d="M 285 165 C 310 160, 340 145, 350 132" stroke="#FF7096" stroke-width="20" fill="none" stroke-linecap="round"/>
+                    <circle cx="350" cy="132" r="14" fill="url(#contactGlow)"/>
+                `
+            },
+            'k': {
+                badgeColor: 'bg-indigo-500',
+                descMs: 'Bahagian belakang lidah naik ke langit-langit lembut, lepaskan udara.',
+                descEn: 'Back of tongue rises to soft palate, release air.',
+                isVoiced: false,
+                captionMs: 'Belakang lidah sentuh sini',
+                captionEn: 'Back of tongue touches here',
+                badgeMs: 'Bunyi tidak bersuara (tidak ada getaran tekak)',
+                badgeEn: 'Voiceless sound (no throat vibration)',
+                mirrorFeedbackClosed: '🗣️ Bukaan mulut sesuai untuk pangkal lidah /k/',
+                mirrorFeedbackOpen: '🗣️ Panduan: Tekan pangkal lidah & lepaskan udara',
+                insetSvg: `
+                    <path d="M 290 105 C 330 110, 360 135, 365 160" stroke="#E11D48" stroke-width="12" fill="none"/>
+                    <path d="M 285 165 C 310 160, 340 145, 350 132" stroke="#FF7096" stroke-width="20" fill="none" stroke-linecap="round"/>
+                    <circle cx="350" cy="132" r="14" fill="url(#contactGlow)"/>
+                `
+            },
+            'l': {
+                badgeColor: 'bg-red-500',
+                descMs: 'Hujung lidah sentuh langit-langit keras, udara keluar di sisi lidah.',
+                descEn: 'Tongue tip touches hard palate, air flows around sides of tongue.',
+                isVoiced: true,
+                captionMs: 'Udara keluar di sisi lidah',
+                captionEn: 'Air flows at sides of tongue',
+                badgeMs: 'Bunyi bersuara (ada getaran tekak)',
+                badgeEn: 'Voiced sound (throat vibration)',
+                mirrorFeedbackClosed: '👄 Kekalkan bibir sedikit terbuka naturally',
+                mirrorFeedbackOpen: '👅 Panduan: Hujung lidah ke langit-langit keras',
+                insetSvg: `
+                    <path d="M 295 100 C 325 105, 350 120, 350 135" stroke="#F59E0B" stroke-width="10" fill="none"/>
+                    <path d="M 290 165 Q 320 155 330 120" stroke="#FF7096" stroke-width="16" fill="none" stroke-linecap="round"/>
+                    <circle cx="330" cy="120" r="12" fill="url(#contactGlow)"/>
+                `
+            },
+            'r': {
+                badgeColor: 'bg-orange-500',
+                descMs: 'Hujung lidah hampir sentuh langit-langit keras (bergetar / melengkung).',
+                descEn: 'Tongue tip almost touches hard palate (vibrating / curled).',
+                isVoiced: true,
+                captionMs: 'Hujung lidah bergetar',
+                captionEn: 'Tongue tip vibrating',
+                badgeMs: 'Bunyi bersuara (ada getaran tekak)',
+                badgeEn: 'Voiced sound (throat vibration)',
+                mirrorFeedbackClosed: '👄 Bibir santai, biarkan lidah bergetar',
+                mirrorFeedbackOpen: '〰️ Panduan: Getarkan hujung lidah lembut',
+                insetSvg: `
+                    <path d="M 295 100 C 325 105, 350 120, 350 135" stroke="#F59E0B" stroke-width="10" fill="none"/>
+                    <path d="M 290 165 Q 315 155 325 125" stroke="#FF7096" stroke-width="16" fill="none" stroke-linecap="round"/>
+                    <circle cx="325" cy="122" r="10" fill="url(#contactGlow)"/>
+                `
+            }
+        };
+
+        // --- TRANSLATION DICTIONARY ---
+        const translations = {
+            'ms': {
+                'lang-title-home': 'Pilih Pasangan Huruf',
+                'lang-desc-home': 'Mari belajar perbezaan bentuk mulut dan bunyi!',
+                'lang-title-select': 'Pilih Huruf Sasaran',
+                'lang-title-diagram': 'RAJAH KERATAN SISI ALAT ARTIKULASI',
+                'lang-btn-listen': 'Dengar Sebutan Guru',
+                'lang-btn-replay': 'Ulang Animasi',
+                'lang-btn-try': 'Ikut Dengan Cermin Digital',
+                'lang-title-camera': 'Cermin Digital Sebutan',
+                'lang-card-target': 'BENTUK SASARAN',
+                'lang-card-mirror': 'MULUT ANDA (CERMIN)',
+                'lang-cam-loading': 'Membuka cermin kamera...',
+                'lang-mirror-preparing': 'Sediakan bentuk mulut mengikut rujukan...',
+                'lang-disclaimer-mirror': '* Tracking wajah secara langsung (panduan visual anggaran)',
+                'lang-btn-next': 'Seterusnya (Latihan Bunyi)',
+                'lang-title-speech': 'Latihan Bunyi & Sebutan',
+                'lang-target-label': 'SASARAN SEBUTAN SEKARANG',
+                'lang-label-syllable': 'SUKU KATA (PILIH UNTUK DENGAR & RAKAM)',
+                'lang-label-word': 'PERKATAAN (PILIH UNTUK DENGAR & RAKAM)',
+                'lang-disclaimer-speech': '* Pengecaman suara menyemak padanan bunyi awal sasaran secara khusus.',
+                'lang-btn-retry': 'Cuba Lagi',
+                'lang-btn-finish': 'Lihat Rumusan',
+                'lang-title-summary': 'Syabas!',
+                'lang-desc-summary': 'Anda telah menyelesaikan latihan untuk huruf ini.',
+                'lang-summary-speech': 'Purata Sebutan',
+                'lang-summary-correct': 'Sebutan Tepat',
+                'lang-summary-retries': 'Cuba Lagi',
+                'lang-summary-mirror': 'Cermin Digital',
+                'lang-btn-home': 'Kembali ke Laman Utama',
+                'err-audio': 'Audio sebutan guru belum tersedia.',
+                'err-cam-denied': '📷 Akses kamera belum dibenarkan. Sila benarkan pada browser.',
+                'err-cam-notfound': '📷 Kamera tidak ditemui pada peranti ini.',
+                'err-cam-inuse': '📷 Kamera sedang digunakan oleh aplikasi lain.',
+                'err-cam-blocked': '📷 Akses kamera disekat oleh pelayar.',
+                'err-cam-generic': '📷 Kamera tidak dapat dibuka.'
+            },
+            'en': {
+                'lang-title-home': 'Select Letter Pair',
+                'lang-desc-home': 'Let\'s learn the difference in mouth shape and sound!',
+                'lang-title-select': 'Select Target Letter',
+                'lang-title-diagram': 'SIDE-VIEW ARTICULATORY DIAGRAM',
+                'lang-btn-listen': 'Listen to Teacher',
+                'lang-btn-replay': 'Replay Animation',
+                'lang-btn-try': 'Practice with Digital Mirror',
+                'lang-title-camera': 'Digital Mirror Practice',
+                'lang-card-target': 'TARGET SHAPE',
+                'lang-card-mirror': 'YOUR MOUTH (MIRROR)',
+                'lang-cam-loading': 'Opening camera mirror...',
+                'lang-mirror-preparing': 'Prepare your mouth shape according to reference...',
+                'lang-disclaimer-mirror': '* Live face tracking (approximate visual guide)',
+                'lang-btn-next': 'Next (Sound Practice)',
+                'lang-title-speech': 'Sound & Speech Practice',
+                'lang-target-label': 'CURRENT SPEECH TARGET',
+                'lang-label-syllable': 'SYLLABLES (SELECT TO LISTEN & RECORD)',
+                'lang-label-word': 'WORDS (SELECT TO LISTEN & RECORD)',
+                'lang-disclaimer-speech': '* Speech recognition specifically checks target initial phonemes.',
+                'lang-btn-retry': 'Try Again',
+                'lang-btn-finish': 'View Summary',
+                'lang-title-summary': 'Well Done!',
+                'lang-desc-summary': 'You have completed practice for this letter.',
+                'lang-summary-speech': 'Average Score',
+                'lang-summary-correct': 'Correct Words',
+                'lang-summary-retries': 'Retries',
+                'lang-summary-mirror': 'Digital Mirror',
+                'lang-btn-home': 'Back to Home',
+                'err-audio': 'Teacher audio not available.',
+                'err-cam-denied': '📷 Camera access denied. Please allow camera permissions.',
+                'err-cam-notfound': '📷 No camera found on this device.',
+                'err-cam-inuse': '📷 Camera is currently used by another app.',
+                'err-cam-blocked': '📷 Camera access blocked by browser.',
+                'err-cam-generic': '📷 Camera cannot be opened.'
+            }
+        };
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            window.scrollTo(0, 0);
+        }
+
+        function goHome() {
+            stopCamera();
+            showScreen('screen-home');
+        }
+
+        function updateArticulationTexts(letter) {
+            const details = articulationDetails[letter.toLowerCase()];
+            if (!details) return;
+
+            const lang = state.language;
+            const isMs = lang === 'ms';
+
+            // Banner badge & description
+            const badgeEl = document.getElementById('banner-letter-badge');
+            if (badgeEl) {
+                badgeEl.innerText = letter.toLowerCase();
+                badgeEl.className = `w-12 h-12 rounded-full text-white font-black text-2xl flex items-center justify-center flex-shrink-0 shadow ${details.badgeColor}`;
+            }
+
+            const descEl = document.getElementById('artic-description-text');
+            if (descEl) {
+                descEl.innerText = isMs ? details.descMs : details.descEn;
+            }
+
+            // Inset Magnifier content & caption
+            const insetContent = document.getElementById('inset-content');
+            if (insetContent) {
+                insetContent.innerHTML = details.insetSvg;
+            }
+
+            const insetCaption = document.getElementById('inset-caption');
+            if (insetCaption) {
+                insetCaption.textContent = isMs ? details.captionMs : details.captionEn;
+            }
+
+            // Voicing Badge
+            const voicingBadge = document.getElementById('voicing-badge');
+            const voicingIcon = document.getElementById('voicing-icon');
+            const voicingText = document.getElementById('voicing-text');
+
+            if (voicingBadge && voicingText && voicingIcon) {
+                voicingText.innerText = isMs ? details.badgeMs : details.badgeEn;
+                if (details.isVoiced) {
+                    voicingIcon.innerText = "🔊";
+                    voicingBadge.className = "max-w-md mx-auto mb-6 py-2.5 px-4 rounded-2xl text-center font-bold text-sm sm:text-base transition-colors shadow-sm flex items-center justify-center gap-2 bg-amber-100 text-amber-900 border border-amber-300";
+                } else {
+                    voicingIcon.innerText = "🔇";
+                    voicingBadge.className = "max-w-md mx-auto mb-6 py-2.5 px-4 rounded-2xl text-center font-bold text-sm sm:text-base transition-colors shadow-sm flex items-center justify-center gap-2 bg-sky-100 text-sky-900 border border-sky-300";
+                }
+            }
+
+            // Camera Target Card Details
+            const camTargetLetter = document.getElementById('camera-target-letter');
+            if (camTargetLetter) camTargetLetter.innerText = letter.toLowerCase();
+
+            const camTargetHint = document.getElementById('camera-target-hint');
+            if (camTargetHint) camTargetHint.innerText = isMs ? details.descMs : details.descEn;
+
+            const miniContainer = document.getElementById('mini-target-svg-container');
+            if (miniContainer) {
+                miniContainer.innerHTML = `
+                    <svg viewBox="250 80 160 130" class="w-full h-full">
+                        ${details.insetSvg}
+                    </svg>
+                `;
+            }
+        }
+
+        function animateMouth(letter) {
+            const lower = letter.toLowerCase();
+            
+            document.querySelectorAll('.artic-state').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            const targetEl = document.getElementById(`artic-${lower}`);
+            if (targetEl) {
+                targetEl.classList.add('active');
+                targetEl.style.animation = 'none';
+                targetEl.offsetHeight; // trigger reflow
+                targetEl.style.animation = null;
+            }
+
+            updateArticulationTexts(lower);
+        }
+
+        function setLanguage(lang) {
+            state.language = lang;
+            
+            document.getElementById('lang-ms').className = lang === 'ms' 
+                ? 'px-4 py-1.5 rounded-full text-sm font-bold bg-white shadow text-edu-blue transition-all' 
+                : 'px-4 py-1.5 rounded-full text-sm font-bold text-gray-500 transition-all';
+            document.getElementById('lang-en').className = lang === 'en' 
+                ? 'px-4 py-1.5 rounded-full text-sm font-bold bg-white shadow text-edu-blue transition-all' 
+                : 'px-4 py-1.5 rounded-full text-sm font-bold text-gray-500 transition-all';
+
+            const dict = translations[lang];
+            for (const key in dict) {
+                document.querySelectorAll(`.${key}`).forEach(el => {
+                    el.innerText = dict[key];
+                });
+            }
+
+            if (state.currentLetter) {
+                updateArticulationTexts(state.currentLetter);
+            }
+        }
+
+        function selectPair(l1, l2) {
+            state.currentPair = [l1, l2];
+            
+            const grid = document.getElementById('letter-select-grid');
+            grid.innerHTML = '';
+            
+            const colors = ['text-blue-500', 'text-pink-500'];
+            const borders = ['border-blue-200', 'border-pink-200'];
+            
+            [l1, l2].forEach((letter, index) => {
+                const btn = document.createElement('button');
+                btn.className = `btn-bounce bg-white rounded-3xl p-8 shadow-lg border-b-4 ${borders[index]} hover:border-gray-400 flex flex-col items-center justify-center gap-2`;
+                btn.onclick = () => selectLetter(letter);
+                btn.innerHTML = `<span class="text-6xl font-black ${colors[index]}">${letter.toLowerCase()}</span>`;
+                grid.appendChild(btn);
+            });
+
+            showScreen('screen-letter-select');
+        }
+
+        function selectLetter(letter) {
+            const lowerLetter = letter.toLowerCase();
+            state.currentLetter = lowerLetter;
+            state.speechAttempts = [];
+            state.retriesCount = 0;
+            
+            document.getElementById('current-letter-display').innerText = lowerLetter;
+            document.getElementById('audio-error-msg').classList.add('hidden');
+            
+            populateSpeechContent(lowerLetter);
+            showScreen('screen-mouth-model');
+            animateMouth(lowerLetter);
+        }
+
+        let currentTeacherAudio = null;
+
+        function playModelAudio(letter) {
+            const errorMsg = document.getElementById('audio-error-msg');
+            if (errorMsg) errorMsg.classList.add('hidden');
+
+            const lowerLetter = letter.toLowerCase();
+
+            // 1. Check if user uploaded a custom MP3 audio blob file in this session
+            if (customAudioMap[lowerLetter]) {
+                if (currentTeacherAudio) {
+                    currentTeacherAudio.pause();
+                    currentTeacherAudio.currentTime = 0;
+                }
+                currentTeacherAudio = new Audio(customAudioMap[lowerLetter]);
+                currentTeacherAudio.play().then(() => {
+                    animateMouth(lowerLetter);
+                }).catch(err => {
+                    fallbackToTTS(lowerLetter);
+                });
+                return;
+            }
+
+            // 2. Try server relative path 'audio/{letter}.mp3'
+            if (currentTeacherAudio) {
+                currentTeacherAudio.pause();
+                currentTeacherAudio.currentTime = 0;
+            }
+
+            currentTeacherAudio = new Audio(`audio/${lowerLetter}.mp3`);
+            currentTeacherAudio.play().then(() => {
+                animateMouth(lowerLetter);
+            }).catch(err => {
+                console.warn(`Teacher MP3 file missing at audio/${lowerLetter}.mp3, using Speech Synthesizer fallback:`, err);
+                fallbackToTTS(lowerLetter);
+            });
+        }
+
+        // Automatic fallback speech synthesis if local MP3 file is not found
+        function fallbackToTTS(letter) {
+            const lowerLetter = letter.toLowerCase();
+            const phonemes = {
+                'p': 'pa', 'b': 'ba', 'd': 'da', 't': 'ta',
+                'g': 'ga', 'k': 'ka', 'l': 'la', 'r': 'ra'
+            };
+            const soundToPlay = phonemes[lowerLetter] || lowerLetter;
+            
+            speakText(soundToPlay);
+            animateMouth(lowerLetter);
+
+            const errorMsg = document.getElementById('audio-error-msg');
+            if (errorMsg) {
+                const isMs = state.language === 'ms';
+                errorMsg.innerHTML = `<i class="fa-solid fa-circle-info mr-1"></i> ${isMs ? 'Menggunakan sebutan automatik (Fail audio/.mp3 belum dikesan). Anda boleh muat naik MP3 guna butang di atas.' : 'Using speech synthesizer fallback.'}`;
+                errorMsg.className = "bg-blue-50 text-blue-700 text-center py-2.5 px-4 rounded-xl mb-4 text-xs font-semibold border border-blue-200 shadow-sm";
+                errorMsg.classList.remove('hidden');
+            }
+        }
+
+        function toggleAudioModal() {
+            const modal = document.getElementById('audio-upload-modal');
+            const isHidden = modal.classList.contains('hidden');
+            if (isHidden) {
+                buildAudioInputs();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function buildAudioInputs() {
+            const container = document.getElementById('audio-inputs-grid');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const letters = ['p', 'b', 'd', 't', 'g', 'k', 'l', 'r'];
+
+            letters.forEach(letter => {
+                const div = document.createElement('div');
+                div.className = "p-3 border border-gray-200 rounded-2xl bg-gray-50 flex flex-col gap-1.5";
+
+                const hasAudio = !!customAudioMap[letter];
+
+                div.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-lg text-edu-blue">Huruf /${letter}/</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${hasAudio ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}">
+                            ${hasAudio ? '✓ Dimuat Naik' : 'Sebutan Auto'}
+                        </span>
+                    </div>
+                    <input type="file" accept="audio/*" onchange="handleAudioUpload(event, '${letter}')" class="text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-edu-blue file:text-white hover:file:bg-blue-600 cursor-pointer" />
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function handleAudioUpload(event, letter) {
+            const file = event.target.files[0];
+            if (file) {
+                const audioUrl = URL.createObjectURL(file);
+                customAudioMap[letter] = audioUrl;
+                buildAudioInputs(); // Refresh status badges
+            }
+        }
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ms-MY';
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // --- DIGITAL MIRROR CAMERA SYSTEM ---
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const errorContainer = document.getElementById('camera-error');
+        const errorText = document.getElementById('camera-error-text');
+        const loadingIndicator = document.getElementById('camera-loading');
+        
+        let faceMesh;
+        let camera;
+
+        document.getElementById('btn-try-now').addEventListener('click', async () => {
+            showScreen('screen-camera');
+            await startCamera();
+        });
+
+        async function startCamera() {
+            errorContainer.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+            state.cameraActive = true;
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user" },
+                    audio: false
+                });
+                
+                videoElement.srcObject = stream;
+
+                await new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => resolve();
+                });
+                
+                await videoElement.play();
+                
+                canvasElement.width = videoElement.videoWidth;
+                canvasElement.height = videoElement.videoHeight;
+                loadingIndicator.classList.add('hidden');
+
+                initMediaPipe();
+
+            } catch (err) {
+                state.cameraActive = false;
+                loadingIndicator.classList.add('hidden');
+                errorContainer.classList.remove('hidden');
+                
+                const t = translations[state.language];
+                if (err.name === 'NotAllowedError') {
+                    errorText.innerText = t['err-cam-denied'];
+                } else if (err.name === 'NotFoundError') {
+                    errorText.innerText = t['err-cam-notfound'];
+                } else if (err.name === 'NotReadableError') {
+                    errorText.innerText = t['err-cam-inuse'];
+                } else if (err.name === 'SecurityError') {
+                    errorText.innerText = t['err-cam-blocked'];
+                } else {
+                    errorText.innerText = t['err-cam-generic'];
+                }
+                console.error("Camera access error:", err);
+            }
+        }
+
+        function initMediaPipe() {
+            if (!faceMesh) {
+                faceMesh = new FaceMesh({locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                }});
+
+                faceMesh.setOptions({
+                    maxNumFaces: 1,
+                    refineLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+
+                faceMesh.onResults(onFaceResults);
+            }
+
+            if (!camera) {
+                camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        if (state.cameraActive) {
+                            await faceMesh.send({image: videoElement});
+                        }
+                    },
+                    width: 640,
+                    height: 480
+                });
+                camera.start();
+            }
+        }
+
+        function onFaceResults(results) {
+            if (!state.cameraActive) return;
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                const landmarks = results.multiFaceLandmarks[0];
+                
+                // Key landmark coordinates for mouth tracking
+                const upperLip = landmarks[13];
+                const lowerLip = landmarks[14];
+                const mouthLeft = landmarks[61];
+                const mouthRight = landmarks[291];
+
+                const w = canvasElement.width;
+                const h = canvasElement.height;
+
+                const upperX = upperLip.x * w;
+                const upperY = upperLip.y * h;
+                const lowerX = lowerLip.x * w;
+                const lowerY = lowerLip.y * h;
+                const leftX = mouthLeft.x * w;
+                const leftY = mouthLeft.y * h;
+                const rightX = mouthRight.x * w;
+                const rightY = mouthRight.y * h;
+
+                const lipDist = Math.hypot(upperX - lowerX, upperY - lowerY);
+                const mouthWidth = Math.hypot(rightX - leftX, rightY - leftY);
+                const closureRatio = lipDist / (mouthWidth || 1);
+
+                // Draw pupil-friendly real-time anatomical guide overlay over live camera mirror
+                canvasCtx.strokeStyle = "#06D6A0";
+                canvasCtx.lineWidth = 3;
+
+                // Lip Contour Guide Ring
+                canvasCtx.beginPath();
+                canvasCtx.ellipse((leftX + rightX)/2, (upperY + lowerY)/2, mouthWidth/2.2, Math.max(lipDist/1.5, 8), 0, 0, 2 * Math.PI);
+                canvasCtx.stroke();
+
+                // Target-specific landmark guidance overlays
+                const target = state.currentLetter;
+                const details = articulationDetails[target];
+                const feedbackEl = document.getElementById('mirror-feedback-text');
+
+                if (target === 'p' || target === 'b') {
+                    // Lip closure focus
+                    if (closureRatio < 0.22) {
+                        canvasCtx.fillStyle = "rgba(6, 214, 160, 0.4)";
+                        canvasCtx.fill();
+                        if (feedbackEl) feedbackEl.innerText = details.mirrorFeedbackClosed;
+                    } else {
+                        canvasCtx.fillStyle = "rgba(255, 124, 163, 0.3)";
+                        canvasCtx.fill();
+                        if (feedbackEl) feedbackEl.innerText = details.mirrorFeedbackOpen;
+                    }
+                } else if (target === 'd' || target === 't' || target === 'l' || target === 'r') {
+                    // Front tongue / Alveolar ridge contact guide marker overlay
+                    canvasCtx.fillStyle = "#FFD166";
+                    canvasCtx.beginPath();
+                    canvasCtx.arc((upperX + lowerX)/2, upperY + 6, 6, 0, 2 * Math.PI);
+                    canvasCtx.fill();
+                    if (feedbackEl) feedbackEl.innerText = closureRatio < 0.2 ? details.mirrorFeedbackClosed : details.mirrorFeedbackOpen;
+                } else if (target === 'g' || target === 'k') {
+                    // Back tongue / Velum area guide indicator overlay
+                    canvasCtx.fillStyle = "#FF7CA3";
+                    canvasCtx.beginPath();
+                    canvasCtx.arc((upperX + lowerX)/2, lowerY - 4, 8, 0, 2 * Math.PI);
+                    canvasCtx.fill();
+                    if (feedbackEl) feedbackEl.innerText = details.mirrorFeedbackOpen;
+                }
+            }
+            canvasCtx.restore();
+        }
+
+        function stopCamera() {
+            state.cameraActive = false;
+            if (camera) {
+                camera.stop();
+                camera = null;
+            }
+            if (videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+            }
+        }
+
+        function closeCameraAndGoBack() {
+            stopCamera();
+            showScreen('screen-mouth-model');
+        }
+
+        function goToSpeech() {
+            stopCamera();
+            showScreen('screen-speech');
+        }
+
+        function populateSpeechContent(letter) {
+            const data = contentData[letter.toLowerCase()];
+            if (!data) return;
+
+            const sylContainer = document.getElementById('syllable-container');
+            const wordContainer = document.getElementById('word-container');
+            
+            sylContainer.innerHTML = '';
+            wordContainer.innerHTML = '';
+
+            // Isolated letter phoneme & Syllable buttons
+            data.syllables.forEach((syl, index) => {
+                const btn = document.createElement('button');
+                const isPhoneme = syl.includes('(bunyi)');
+                const displayText = isPhoneme ? `Huruf ${letter}` : syl;
+                const targetValue = isPhoneme ? letter.toLowerCase() : syl;
+
+                btn.className = `btn-bounce px-4 py-2.5 rounded-2xl font-bold text-base transition shadow-sm ${index === 0 ? 'bg-edu-pink text-white shadow-md ring-2 ring-pink-300' : 'bg-gray-100 text-gray-700 hover:bg-edu-yellow'}`;
+                btn.innerText = displayText;
+                btn.onclick = () => selectSpeechTarget(targetValue, btn);
+                sylContainer.appendChild(btn);
+            });
+
+            // Word buttons
+            data.words.forEach(word => {
+                const btn = document.createElement('button');
+                btn.className = "btn-bounce px-5 py-3 bg-white border-2 border-blue-200 rounded-2xl font-bold text-edu-dark hover:border-edu-pink transition shadow-sm text-lg";
+                btn.innerText = word;
+                btn.onclick = () => selectSpeechTarget(word, btn);
+                wordContainer.appendChild(btn);
+            });
+
+            // Set initial active target item to isolated phoneme p / b
+            const initialTarget = data.syllables[0].includes('(bunyi)') ? letter.toLowerCase() : data.syllables[0];
+            state.currentTargetItem = initialTarget;
+            document.getElementById('current-speech-target').innerText = initialTarget;
+
+            resetScorePanel();
+        }
+
+        function selectSpeechTarget(item, btnElement) {
+            state.currentTargetItem = item.toLowerCase();
+            document.getElementById('current-speech-target').innerText = item.toLowerCase();
+            
+            // Highlight active button
+            document.querySelectorAll('#syllable-container button, #word-container button').forEach(b => {
+                b.classList.remove('bg-edu-pink', 'text-white', 'border-edu-pink');
+                b.classList.add('bg-gray-100', 'text-gray-700');
+            });
+            if (btnElement) {
+                btnElement.classList.remove('bg-gray-100', 'text-gray-700');
+                btnElement.classList.add('bg-edu-pink', 'text-white');
+            }
+
+            speakText(item);
+            resetScorePanel();
+        }
+
+        function playTargetSound() {
+            const item = state.currentTargetItem.toLowerCase();
+            const targetConsonants = ['p','b','d','t','g','k','l','r'];
+            
+            // Route target consonants exclusively to teacher MP3 files
+            if (targetConsonants.includes(item)) {
+                playModelAudio(item);
+            } else {
+                speakText(item);
+            }
+        }
+
+        function resetScorePanel() {
+            document.getElementById('score-card-panel').classList.add('hidden');
+            document.getElementById('speech-result-transcript').innerText = "...";
+            document.getElementById('speech-listening-status').innerText = "Tekan mikrofon & sebut sasaran";
+        }
+
+        // --- PHONETIC PRONUNCIATION EVALUATION ENGINE ---
+        function evaluatePronunciation(targetText, spokenText, targetLetter) {
+            const target = targetText.trim().toLowerCase();
+            const spoken = spokenText.trim().toLowerCase();
+            const letter = targetLetter.toLowerCase();
+
+            // Confusion Pair Definitions
+            const pairs = {
+                'p': 'b', 'b': 'p',
+                'd': 't', 't': 'd',
+                'g': 'k', 'k': 'g',
+                'l': 'r', 'r': 'l'
+            };
+            const confusedSound = pairs[letter];
+
+            // Clean punctuation
+            const cleanSpoken = spoken.replace(/[^a-z]/g, '');
+            const cleanTarget = target.replace(/[^a-z]/g, '');
+
+            // Exact match
+            if (cleanSpoken === cleanTarget) {
+                return {
+                    score: 100,
+                    title: "🌟 Hebat! Sebutan betul!",
+                    hint: `Sebutan tepat untuk /${target}/!`,
+                    isCorrect: true
+                };
+            }
+
+            const targetFirst = cleanTarget.charAt(0);
+            const spokenFirst = cleanSpoken.charAt(0);
+
+            // Special Check: Target initial sound mismatch (e.g. batu vs patu, tali vs dali)
+            if (targetFirst === letter && spokenFirst === confusedSound) {
+                return {
+                    score: 50,
+                    title: "🙂 Cuba lagi! Bunyi awal belum tepat.",
+                    hint: `🔁 Anda sebut bunyi /${confusedSound}/. Cuba sebut bunyi awal /${letter}/.`,
+                    isCorrect: false
+                };
+            }
+
+            // Calculate Levenshtein Distance for fuzzy match accuracy
+            const dist = levenshteinDistance(cleanTarget, cleanSpoken);
+            const maxLen = Math.max(cleanTarget.length, cleanSpoken.length);
+            const similarity = maxLen === 0 ? 1.0 : (1.0 - dist / maxLen);
+
+            if (similarity >= 0.75) {
+                return {
+                    score: 75,
+                    title: "👍 Hampir betul!",
+                    hint: `Sebutan hampir tepat. Dengar semula & perjelaskan bunyi /${letter}/.`,
+                    isCorrect: false
+                };
+            } else if (similarity >= 0.4) {
+                return {
+                    score: 50,
+                    title: "🙂 Cuba lagi!",
+                    hint: `Sebutan kurang tepat. Pastikan bunyi sasaran /${target}/.`,
+                    isCorrect: false
+                };
+            } else if (similarity > 0) {
+                return {
+                    score: 25,
+                    title: "🔁 Mari cuba semula!",
+                    hint: `Bunyi sebutan jauh berbeza. Dengar bunyi guru dahulu.`,
+                    isCorrect: false
+                };
+            } else {
+                return {
+                    score: 0,
+                    title: "💪 Cuba lagi. Dengar bunyi sasaran.",
+                    hint: `Pengecaman suara mengesan perkataan berbeza.`,
+                    isCorrect: false
+                };
+            }
+        }
+
+        // Levenshtein distance implementation
+        function levenshteinDistance(a, b) {
+            const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+            for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+            for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+            for (let i = 1; i <= a.length; i++) {
+                for (let j = 1; j <= b.length; j++) {
+                    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j - 1] + cost
+                    );
+                }
+            }
+            return matrix[a.length][b.length];
+        }
+
+        // --- SPEECH RECOGNITION SETUP ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let isRecognizing = false;
+        
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ms-MY';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = function() {
+                isRecognizing = true;
+                const btn = document.getElementById('btn-record');
+                btn.classList.add('bg-edu-yellow', 'scale-110');
+                btn.classList.remove('bg-red-500');
+                document.getElementById('speech-listening-status').innerText = "🎙️ Mendengar sebutan anda...";
+                document.getElementById('speech-result-transcript').innerText = "...";
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                document.getElementById('speech-result-transcript').innerText = `Anda sebut: "${transcript}"`;
+                
+                // Evaluate pronunciation against state target
+                const evalResult = evaluatePronunciation(state.currentTargetItem, transcript, state.currentLetter);
+                
+                // Track attempt statistics
+                state.speechAttempts.push({
+                    target: state.currentTargetItem,
+                    spoken: transcript,
+                    score: evalResult.score,
+                    isCorrect: evalResult.isCorrect
+                });
+
+                displayScoreCard(evalResult);
+            };
+
+            recognition.onerror = function(event) {
+                isRecognizing = false;
+                document.getElementById('speech-listening-status').innerText = "Pengecaman suara tidak jelas. Cuba sebut lagi.";
+            };
+
+            recognition.onend = function() {
+                isRecognizing = false;
+                const btn = document.getElementById('btn-record');
+                btn.classList.add('bg-red-500');
+                btn.classList.remove('bg-edu-yellow', 'scale-110');
+            };
+
+            document.getElementById('btn-record').addEventListener('click', () => {
+                if (isRecognizing) {
+                    try {
+                        recognition.stop();
+                    } catch (e) {
+                        console.warn('Speech recognition stop error:', e);
+                    }
+                } else {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.warn('Speech recognition start error:', e);
+                        isRecognizing = false;
+                    }
+                }
+            });
+        } else {
+            document.getElementById('btn-record').style.display = 'none';
+            document.getElementById('speech-listening-status').innerText = "Pelayar web tidak menyokong pengecaman suara.";
+        }
+
+        function displayScoreCard(result) {
+            const card = document.getElementById('score-card-panel');
+            const numeric = document.getElementById('score-numeric-display');
+            const badge = document.getElementById('score-badge-text');
+            const hint = document.getElementById('score-feedback-hint');
+
+            numeric.innerHTML = `${result.score} <span class="text-lg font-bold text-gray-400">/ 100</span>`;
+            badge.innerText = result.title;
+            hint.innerText = result.hint;
+
+            // Color coding border based on score
+            if (result.score === 100) {
+                card.className = "max-w-md mx-auto bg-green-50 rounded-2xl p-5 shadow-md border-2 border-green-400 transition-all";
+                numeric.className = "text-4xl font-black text-green-600 my-1";
+            } else if (result.score >= 75) {
+                card.className = "max-w-md mx-auto bg-blue-50 rounded-2xl p-5 shadow-md border-2 border-blue-400 transition-all";
+                numeric.className = "text-4xl font-black text-edu-blue my-1";
+            } else if (result.score >= 50) {
+                card.className = "max-w-md mx-auto bg-yellow-50 rounded-2xl p-5 shadow-md border-2 border-yellow-400 transition-all";
+                numeric.className = "text-4xl font-black text-yellow-600 my-1";
+            } else {
+                card.className = "max-w-md mx-auto bg-red-50 rounded-2xl p-5 shadow-md border-2 border-red-300 transition-all";
+                numeric.className = "text-4xl font-black text-red-500 my-1";
+            }
+
+            card.classList.remove('hidden');
+        }
+
+        function retryCurrentTarget() {
+            state.retriesCount++;
+            resetScorePanel();
+            speakText(state.currentTargetItem);
+        }
+
+        // --- SUMMARY LOGIC ---
+        function finishSession() {
+            const attempts = state.speechAttempts;
+            const total = attempts.length;
+            
+            let avgScore = 0;
+            let correctCount = 0;
+
+            if (total > 0) {
+                const sum = attempts.reduce((acc, curr) => acc + curr.score, 0);
+                avgScore = Math.round(sum / total);
+                correctCount = attempts.filter(a => a.isCorrect).length;
+            }
+
+            document.getElementById('summary-avg-score').innerText = `${avgScore} / 100`;
+            document.getElementById('summary-correct-count').innerText = `${correctCount} / ${total}`;
+            document.getElementById('summary-retry-count').innerText = state.retriesCount;
+            document.getElementById('summary-mirror-status').innerText = "Selesai ✨";
+            
+            showScreen('screen-summary');
+        }
+
+        // Init application language on load
+        setLanguage('ms');
+
+    </script>
+</body>
+</html>
