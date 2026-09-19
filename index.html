@@ -1077,7 +1077,7 @@
                 currentTeacherAudio.currentTime = 0;
             }
 
-            currentTeacherAudio = new Audio(`audio/${lowerLetter}.mp3`);
+            currentTeacherAudio = new Audio(`${lowerLetter.toUpperCase()}.mp3`);
             currentTeacherAudio.play().then(() => {
                 animateMouth(lowerLetter);
             }).catch(err => {
