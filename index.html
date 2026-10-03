@@ -1390,7 +1390,26 @@
 
             resetScorePanel();
         }
+function playSyllableAudio(syllable) {
+    const item = syllable.toLowerCase();
 
+    if (!/^[pbdtgklr][aeiou]$/.test(item)) {
+        return false;
+    }
+
+    if (currentTeacherAudio) {
+        currentTeacherAudio.pause();
+        currentTeacherAudio.currentTime = 0;
+    }
+
+    currentTeacherAudio = new Audio(`${item}.mp3`);
+
+    currentTeacherAudio.play().catch(error => {
+        console.warn(`Audio guru tidak tersedia: ${item}.mp3`, error);
+    });
+
+    return true;
+}
         function selectSpeechTarget(item, btnElement) {
             state.currentTargetItem = item.toLowerCase();
             document.getElementById('current-speech-target').innerText = item.toLowerCase();
@@ -1405,7 +1424,7 @@
                 btnElement.classList.add('bg-edu-pink', 'text-white');
             }
 
-            speakText(item);
+            playSyllableAudio(item) || speakText(item);
             resetScorePanel();
         }
 
@@ -1417,7 +1436,11 @@
             if (targetConsonants.includes(item)) {
                 playModelAudio(item);
             } else {
-                speakText(item);
+                if (/^[pbdtgklr][aeiou]$/.test(item)) {
+    playSyllableAudio(item);
+} else {
+    speakText(item);
+}
             }
         }
 
@@ -1626,7 +1649,7 @@
         function retryCurrentTarget() {
             state.retriesCount++;
             resetScorePanel();
-            speakText(state.currentTargetItem);
+            playTargetSound();
         }
 
         // --- SUMMARY LOGIC ---
