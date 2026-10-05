@@ -986,24 +986,12 @@
     const mouthGif = document.getElementById('mouth-gif');
     const mouthSvg = document.getElementById('mouth-svg');
 
-    if (lower === 'p') {
-        if (mouthGif) mouthGif.classList.remove('hidden');
-        if (mouthSvg) mouthSvg.classList.add('hidden');
-    } else {
-        if (mouthGif) mouthGif.classList.add('hidden');
-        if (mouthSvg) mouthSvg.classList.remove('hidden');
+    if (mouthGif && mouthSvg) {
+        mouthGif.src = `${lower.toUpperCase()}.GIF`;
+        mouthGif.alt = `Animasi sebutan huruf ${lower.toUpperCase()}`;
 
-        document.querySelectorAll('.artic-state').forEach(el => {
-            el.classList.remove('active');
-        });
-
-        const targetEl = document.getElementById(`artic-${lower}`);
-        if (targetEl) {
-            targetEl.classList.add('active');
-            targetEl.style.animation = 'none';
-            targetEl.offsetHeight;
-            targetEl.style.animation = null;
-        }
+        mouthGif.classList.remove('hidden');
+        mouthSvg.classList.add('hidden');
     }
 
     updateArticulationTexts(lower);
